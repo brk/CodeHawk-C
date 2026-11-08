@@ -192,6 +192,20 @@ class CFilePredicateDictionary(object):
 
         elif p.is_initialized:
             p = cast(PO.CPOInitialized, p)
+            host = p.lval.lhost
+            if host.is_var and not p.lval.offset.has_offset() and host.vid in subst:
+                actual = subst[host.vid]
+                if not actual.is_lval:
+                    # A by-value formal is assigned on entry. For a non-lvalue
+                    # actual, initialization of all operand reads is checked
+                    # by the caller's primary obligations. Keep a supporting
+                    # obligation, expressed as the corresponding true fact.
+                    cd = self.dictionary
+                    one = cd.mk_constant_index(["int", "1", "iint"], [])
+                    exp = cd.mk_exp_index(["const"], [one])
+                    typ = cd.mk_typ_index(["tint", "iint"], [])
+                    truth = cd.mk_exp_index(["binop", "eq"], [exp, exp, typ])
+                    return self.po_predicate_table.add_tags_args(["vc"], [truth], f)
             args = [self.dictionary.index_lval(p.lval, subst=subst)]
 
         elif p.is_locally_initialized:

@@ -147,13 +147,45 @@ class CFileDictionary(CDictionary):
         return self.lval_table.add_tags_args([], args, f)
 
     def mk_lval_exp(self, lval: int) -> int:
-        args = [lval]
-        tags = ["lval"]
+        return self.mk_exp_index(["lval"], [lval])
 
-        def f(index, key):
-            return CE.CExpLval(self, index, tags, args)
+    def _append_offset(self, first: int, second: int) -> int:
+        offset = self.get_offset(first)
+        if not offset.has_offset():
+            return second
+        args = offset.args[:]
+        args[-1] = self._append_offset(args[-1], second)
+        return self.mk_offset_index(offset.tags, args)
 
-        return self.exp_table.add(IT.get_key(tags, args), f)
+    def index_lval(self, lval: CLval, subst: Dict[int, CExp] = {}, fid: int = -1) -> int:
+        host = lval.lhost
+        if host.is_var and cast(CLHostVar, host).vid in subst:
+            # Actual arguments already belong to the caller. Reapplying the
+            # callee substitution can capture unrelated caller variable IDs.
+            actual = subst[cast(CLHostVar, host).vid]
+            actual = self.get_exp(self.index_exp(actual))
+            if not actual.is_lval:
+                raise ValueError("A substituted lvalue needs an lvalue actual: " + str(actual))
+            actual_lval = cast(CExpLval, actual).lval
+            actual_offset = self.index_offset(actual_lval.offset)
+            formal_offset = self.index_offset(lval.offset, fid, subst)
+            return self.mk_lval_index([], [self.index_lhost(actual_lval.lhost),
+                                          self._append_offset(actual_offset, formal_offset)])
+        return self.mk_lval_index(lval.tags, [self.index_lhost(host, subst, fid),
+                                            self.index_offset(lval.offset, fid, subst)])
+
+    def index_offset(self, offset: COffset, fid: int = -1, subst: Dict[int, CExp] = {}) -> int:
+        if not offset.has_offset():
+            return self.mk_offset_index(offset.tags, offset.args)
+        if offset.is_field:
+            return self.mk_offset_index(offset.tags, [
+                self.convert_ckey(offset.ckey, cast(Any, offset.cd).cfile.index),
+                self.index_offset(offset.offset, fid, subst)])
+        if offset.is_index:
+            return self.mk_offset_index(offset.tags, [
+                self.index_exp(offset.index_exp, subst, fid),
+                self.index_offset(offset.offset, fid, subst)])
+        raise ValueError("Unsupported offset: " + str(offset))
 
     def index_exp(
             self, e: CExp, subst: Dict[int, CExp] = {}, fid: int = -1) -> int:
@@ -171,40 +203,6 @@ class CFileDictionary(CDictionary):
         if lhost.vid not in subst:
             return CDictionary.index_exp(self, e, subst, fid)
 
-        # if lhost.is_var and lhost.vid in subst:
-        if e.lval.offset.has_offset():
-            if e.lval.offset.is_field:
-                paroffset = e.lval.offset
-                newsubst = subst.copy()
-                newsubst.pop(lhost.vid)
-                iargexp = self.index_exp(subst[lhost.vid], newsubst, fid)
-                argexp = self.get_exp(iargexp)
-                if argexp.is_lval:
-                    argexp = cast(CExpLval, argexp)
-                    arghost = argexp.lval.lhost
-                    if argexp.lval.offset.has_offset():
-                        argoffset = argexp.lval.offset
-                        raise Exception(
-                            "Unexpected offset in substitution argument: "
-                            + str(argexp)
-                            + "; offset: "
-                            + str(argoffset)
-                        )
-                    iarghost = self.index_lhost(arghost, newsubst, fid)
-                    iargoffset = self.index_offset(paroffset, fid)
-                    iarglval = self.index_lhost_offset(iarghost, iargoffset)
-                    return self.mk_lval_exp(iarglval)
-                else:
-                    raise Exception(
-                        "Unexpected type in substition argument (not an lval): "
-                        + str(argexp)
-                    )
-            else:
-                raise Exception(
-                    "Unexpected offset in exp to be substituted: " + str(e)
-                )
-
-        # avoid re-substitution for recursive functions
-        newsubst = subst.copy()
-        newsubst.pop(lhost.vid)
-        return self.index_exp(subst[lhost.vid], newsubst, fid)
+        if not e.lval.offset.has_offset():
+            return self.index_exp(subst[lhost.vid])
+        return self.mk_lval_exp(self.index_lval(e.lval, subst, fid))
