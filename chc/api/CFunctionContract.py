@@ -123,7 +123,8 @@ class CFunctionContract:
                 return self._signature
             else:
                 print("Problem with function contract signature: " + self.name)
-        self._signature = {}
+        if self._signature is None:
+            self._signature = {}
         return self._signature
 
     @property
@@ -156,7 +157,8 @@ class CFunctionContract:
                     pc = self.ifd.get_xpredicate(ipc)
                     self._preconditions[ipc] = pc
                 return self._preconditions
-        self._preconditions = {}
+        if self._preconditions is None:
+            self._preconditions = {}
         return self._preconditions
 
     @property
@@ -170,7 +172,8 @@ class CFunctionContract:
                     se = self.ifd.get_xpredicate(ise)
                     self._sideeffects[ise] = se
                 return self._sideeffects
-        self._sideeffects = {}
+        if self._sideeffects is None:
+            self._sideeffects = {}
         return self._sideeffects
 
     def add_postrequest(self, req: "XPredicate") -> None:
