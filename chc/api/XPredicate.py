@@ -990,10 +990,7 @@ class XPreservesMemory(XPredicate):
 
 @ifdregistry.register_tag("prn", XPredicate)
 class XPreservesNullTermination(XPredicate):
-    """Function does not strip null-terminating byte from string pointed-to
-
-    * args[0]: index of term in interface dictionary
-    """
+    """Function preserves null termination (nullary engine predicate)."""
 
     def __init__(
             self, ifd: "InterfaceDictionary", ixval: IT.IndexedTableValue
@@ -1001,15 +998,11 @@ class XPreservesNullTermination(XPredicate):
         XPredicate.__init__(self, ifd, ixval)
 
     @property
-    def term(self) -> "STerm":
-        return self.get_iterm(0)
-
-    @property
     def is_preserves_null_termination(self) -> bool:
         return True
 
     def __str__(self) -> str:
-        return "preserves-null-termination(" + str(self.term) + ")"
+        return "preserves-null-termination"
 
 
 @ifdregistry.register_tag("prv", XPredicate)

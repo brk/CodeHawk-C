@@ -579,6 +579,10 @@ class InterfaceDictionary(object):
             args = []
             tags = ["prm"]
 
+        elif op == "preserves-null-termination":
+            args = []
+            tags = ["prn"]
+
         elif op == "false":
             args = []
             tags = ["f"]
