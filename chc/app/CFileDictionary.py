@@ -33,8 +33,8 @@ import xml.etree.ElementTree as ET
 from typing import Any, cast, Dict, List, TYPE_CHECKING
 
 from chc.app.CCompInfo import CCompInfo
-from chc.app.CExp import (CExp, CExpLval)
-from chc.app.CLHost import CLHost, CLHostVar
+from chc.app.CExp import (CExp, CExpAddrOf, CExpLval)
+from chc.app.CLHost import CLHost, CLHostMem, CLHostVar
 from chc.app.CLval import CLval
 from chc.app.COffset import COffset
 from chc.app.IndexManager import FileKeyReference
@@ -159,6 +159,17 @@ class CFileDictionary(CDictionary):
 
     def index_lval(self, lval: CLval, subst: Dict[int, CExp] = {}, fid: int = -1) -> int:
         host = lval.lhost
+        if host.is_mem:
+            address = self.get_exp(self.index_exp(cast(CLHostMem, host).exp, subst, fid))
+            if address.is_addrof:
+                # Caller requirements such as (*formal).bytes[i] become
+                # caller.bytes[i] when formal is exactly &caller. Preserve
+                # both offset paths, and do not substitute caller IDs again.
+                target = cast(CExpAddrOf, address).lval
+                target_offset = self.index_offset(target.offset)
+                member_offset = self.index_offset(lval.offset, fid, subst)
+                return self.mk_lval_index([], [self.index_lhost(target.lhost),
+                    self._append_offset(target_offset, member_offset)])
         if host.is_var and cast(CLHostVar, host).vid in subst:
             # Actual arguments already belong to the caller. Reapplying the
             # callee substitution can capture unrelated caller variable IDs.
