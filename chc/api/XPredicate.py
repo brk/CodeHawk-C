@@ -130,6 +130,10 @@ class XPredicate(InterfaceDictionaryRecord):
         return False
 
     @property
+    def is_initialized_on_return(self) -> bool:
+        return False
+
+    @property
     def is_initialized_range(self) -> bool:
         return False
 
@@ -546,6 +550,44 @@ class XInitialized(XPredicate):
 
     def __str__(self) -> str:
         return "initialized(" + str(self.term) + ")"
+
+
+@ifdregistry.register_tag("ior", XPredicate)
+class XInitializedOnReturn(XPredicate):
+    """The return comparison implies initialization; other returns grant none.
+
+    tags[1]: comparison; tags[2]: integer constant; args[0]: initialized lval.
+    This deliberately does not have is_initialized=True.
+    """
+
+    @property
+    def is_initialized_on_return(self) -> bool:
+        return True
+
+    @property
+    def comparison(self) -> str:
+        op = self.tags[1]
+        if op not in {"eq", "ne", "lt", "le", "gt", "ge"}:
+            raise UF.CHCError("Invalid initialized-on-return comparison: " + op)
+        return op
+
+    @property
+    def constant(self) -> int:
+        return int(self.tags[2])
+
+    @property
+    def term(self) -> "STerm":
+        return self.get_iterm(0)
+
+    def write_mathml(self, node: ET.Element, signature: List[str]) -> None:
+        apply = ET.SubElement(node, "apply")
+        ET.SubElement(apply, "initialized-on-return",
+                      op=self.comparison, value=str(self.constant))
+        apply.append(self.term.get_mathml_node(signature))
+
+    def __str__(self) -> str:
+        return ("initialized-on-return(" + self.comparison + ","
+                + str(self.constant) + "," + str(self.term) + ")")
 
 
 @ifdregistry.register_tag("ir", XPredicate)

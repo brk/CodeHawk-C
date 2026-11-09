@@ -330,6 +330,10 @@ class InterfaceDictionary(object):
             p = cast(XP.XNonNegative, p)
             args = [self.index_s_term(p.term)]
 
+        elif p.is_initialized_on_return:
+            p = cast(XP.XInitializedOnReturn, p)
+            args = [self.index_s_term(p.term)]
+
         elif p.is_initialized:
             p = cast(XP.XInitialized, p)
             args = [self.index_s_term(p.term)]
@@ -590,6 +594,16 @@ class InterfaceDictionary(object):
         elif op == "initialized":
             args = [pt(terms[0])]
             tags = ["i"]
+
+        elif op == "initialized-on-return":
+            comparison = anode_first.get("op")
+            value = anode_first.get("value")
+            if comparison not in {"eq", "ne", "lt", "le", "gt", "ge"} or value is None:
+                raise UF.CHCError("Invalid initialized-on-return guard")
+            if len(terms) != 1:
+                raise UF.CHCError("initialized-on-return needs exactly one lval")
+            tags = ["ior", comparison, str(int(value))]
+            args = [pt(terms[0])]
 
         elif op == "tainted":
             args = [pt(terms[0]), bound("lb"), bound("ub")]
