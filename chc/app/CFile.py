@@ -282,14 +282,27 @@ class CFile(object):
     def gvardefs(self) -> Dict[int, "CGVarDef"]:
         return self.cfileglobals.gvardefs
 
-    def has_global_varinfo(self, vid: int) -> bool:
-        return vid in self.cfileglobals.global_varinfo_vids
-
-    def get_global_varinfo(self, vid: int) -> "CVarInfo":
+    def _lookup_global_varinfo(self, vid: int) -> Optional["CVarInfo"]:
         if vid in self.cfileglobals.global_varinfo_vids:
             return self.cfileglobals.global_varinfo_vids[vid]
-        else:
-            raise UF.CHCError(f"Global variable with vid: {vid} not found")
+        # Header bodies can be filtered from the global/function list while
+        # their declarations still occur in calls and postcondition requests.
+        # Match the C vid, not the declaration dictionary's unrelated index.
+        for entry in self.declarations.varinfo_table.values():
+            if entry.args[0] == vid:
+                varinfo = self.declarations.get_varinfo(entry.index)
+                if varinfo.vglob:
+                    return varinfo
+        return None
+
+    def has_global_varinfo(self, vid: int) -> bool:
+        return self._lookup_global_varinfo(vid) is not None
+
+    def get_global_varinfo(self, vid: int) -> "CVarInfo":
+        varinfo = self._lookup_global_varinfo(vid)
+        if varinfo is not None:
+            return varinfo
+        raise UF.CHCError(f"Global variable with vid: {vid} not found")
 
     def has_global_varinfo_by_name(self, name: str) -> bool:
         return name in self.cfileglobals.global_varinfo_names
