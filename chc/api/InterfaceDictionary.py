@@ -480,6 +480,13 @@ class InterfaceDictionary(object):
                 ]
                 tags = ["aa"]
 
+            elif op in {"index-size", "byte-size", "nullterminator-pos"}:
+                if len(terms) != 1:
+                    raise UF.CHCError(op + " requires exactly one term")
+                tags = [{"index-size": "is", "byte-size": "bs",
+                         "nullterminator-pos": "at"}[op]]
+                args = [self.parse_mathml_term(terms[0], pars, gvars=gvars)]
+
             elif op == "divide":
                 args = [
                     self.parse_mathml_term(terms[0], pars, gvars=gvars),
