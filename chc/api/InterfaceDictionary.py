@@ -330,6 +330,10 @@ class InterfaceDictionary(object):
             p = cast(XP.XNonNegative, p)
             args = [self.index_s_term(p.term)]
 
+        elif p.is_buffer_on_return:
+            p = cast(XP.XBufferOnReturn, p)
+            args = [self.index_s_term(p.term), self.index_s_term(p.capacity)]
+
         elif p.is_initialized_on_return:
             p = cast(XP.XInitializedOnReturn, p)
             args = [self.index_s_term(p.term)]
@@ -594,6 +598,16 @@ class InterfaceDictionary(object):
         elif op == "initialized":
             args = [pt(terms[0])]
             tags = ["i"]
+
+        elif op == "buffer-on-return":
+            comparison = anode_first.get("op")
+            value = anode_first.get("value")
+            if comparison not in {"eq", "ne", "lt", "le", "gt", "ge"} or value is None:
+                raise UF.CHCError("Invalid buffer-on-return guard")
+            if len(terms) != 2:
+                raise UF.CHCError("buffer-on-return needs an output lval and capacity")
+            tags = ["bor", comparison, str(int(value))]
+            args = [pt(terms[0]), pt(terms[1])]
 
         elif op == "initialized-on-return":
             comparison = anode_first.get("op")

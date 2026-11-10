@@ -130,6 +130,10 @@ class XPredicate(InterfaceDictionaryRecord):
         return False
 
     @property
+    def is_buffer_on_return(self) -> bool:
+        return False
+
+    @property
     def is_initialized_on_return(self) -> bool:
         return False
 
@@ -588,6 +592,39 @@ class XInitializedOnReturn(XPredicate):
     def __str__(self) -> str:
         return ("initialized-on-return(" + self.comparison + ","
                 + str(self.constant) + "," + str(self.term) + ")")
+
+
+@ifdregistry.register_tag("bor", XPredicate)
+class XBufferOnReturn(XInitializedOnReturn):
+    """Guarded output pointer to a live bounded region; payload is unspecified.
+
+    Inherits guard representation, but is never ordinary slot initialization.
+    args[0] is the output pointer lval; args[1] is its byte capacity.
+    """
+
+    @property
+    def is_initialized_on_return(self) -> bool:
+        return False
+
+    @property
+    def is_buffer_on_return(self) -> bool:
+        return True
+
+    @property
+    def capacity(self) -> "STerm":
+        return self.get_iterm(1)
+
+    def write_mathml(self, node: ET.Element, signature: List[str]) -> None:
+        apply = ET.SubElement(node, "apply")
+        ET.SubElement(apply, "buffer-on-return",
+                      op=self.comparison, value=str(self.constant))
+        apply.append(self.term.get_mathml_node(signature))
+        apply.append(self.capacity.get_mathml_node(signature))
+
+    def __str__(self) -> str:
+        return ("buffer-on-return(" + self.comparison + ","
+                + str(self.constant) + "," + str(self.term) + ","
+                + str(self.capacity) + ")")
 
 
 @ifdregistry.register_tag("ir", XPredicate)
