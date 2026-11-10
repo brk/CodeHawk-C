@@ -172,6 +172,14 @@ class CFunctionPO:
         return False
 
     @property
+    def has_local_requirements(self) -> bool:
+        if not self.has_dependencies():
+            return False
+        return self.dependencies.level == "r" or any(
+            assumption.is_local_assumption for assumption in self.get_assumptions()
+        )
+
+    @property
     def dependencies(self) -> "CProofDependencies":
         if self._dependencies is not None:
             return self._dependencies
@@ -359,6 +367,8 @@ class CFunctionPO:
             return "<?>"
         if self.is_deadcode:
             return "<X>"
+        if self.has_local_requirements:
+            return "<R>"
         if self.has_dependencies():
             if self.dependencies.is_stmt:
                 return "<S>"

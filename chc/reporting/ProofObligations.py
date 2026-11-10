@@ -79,7 +79,11 @@ def classifypo(po: "CFunctionPO", d: Dict[str, int]) -> None:
       po: proof obligation (CFunctionPO)
       d: dictionary, with discharge methods initialized (is updated)
     """
-    if po.is_closed:
+    if po.is_safe and po.has_local_requirements:
+        # A local assumption identifies a predicate but carries no exact SPO
+        # identity. The engine's reduction is not a completed discharge.
+        d["open"] += 1
+    elif po.is_closed:
         if po.is_violated:
             d["violated"] += 1
         deps = po.dependencies
